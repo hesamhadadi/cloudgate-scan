@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CloudGate · اسکن IP تمیز</title>
+<style>
+  :root{--bg:#0b1020;--fg:#e6edf3;--mut:#8b98a9;--acc:#4f8cff;--ok:#22c55e;--bad:#ef4444;--card:#141a2e;--br:#222a44}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg);padding:16px;line-height:1.55}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:22px;margin:4px 0 8px}
+  p.sub{color:var(--mut);margin:0 0 16px;font-size:14px}
+  textarea,input,button{font:inherit;color:inherit}
+  textarea{width:100%;min-height:90px;background:var(--card);border:1px solid var(--br);border-radius:10px;padding:10px;direction:ltr;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+  .row{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}
+  button{background:var(--acc);border:0;color:white;padding:12px 18px;border-radius:10px;font-weight:600;cursor:pointer;flex:1;min-width:140px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.sec{background:var(--card);border:1px solid var(--br)}
+  .bar{height:8px;background:var(--card);border-radius:99px;overflow:hidden;margin:8px 0}
+  .bar>div{height:100%;background:var(--acc);width:0;transition:width .1s}
+  .stats{display:flex;gap:12px;color:var(--mut);font-size:13px;margin-bottom:12px;flex-wrap:wrap}
+  .result{background:var(--card);border:1px solid var(--br);border-radius:12px;padding:12px;margin-bottom:10px}
+  .result .ip{font-family:ui-monospace,Menlo,monospace;font-weight:600;direction:ltr}
+  .result .ms{color:var(--ok);font-weight:600}
+  .result .link{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--mut);word-break:break-all;direction:ltr;background:#0b1020;padding:8px;border-radius:6px;margin-top:8px;max-height:80px;overflow:auto}
+  .result .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .result .actions button{flex:0 0 auto;padding:8px 14px;font-size:13px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;background:#1e293b;color:var(--mut)}
+  .head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  details summary{cursor:pointer;color:var(--mut);margin:12px 0}
+  a{color:var(--acc)}
+  #qr{margin-top:10px}
+  .err{color:var(--bad);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ CloudGate · اسکنر IP تمیز</h1>
+  <p class="sub">لینک <code>vless://</code> فعلیت رو بچسبون. این صفحه از <b>مرورگر همین دستگاه</b> ≈۸۰ تا IP کلودفلیر رو تست می‌کنه و بهترین‌ها رو از دید <b>نت فعلی خودت</b> بهت میده.</p>
+
+  <textarea id="link" placeholder="vless://...#tag" spellcheck="false"></textarea>
+
+  <div class="row">
+    <button id="start">🚀 شروع اسکن</button>
+    <button id="paste" class="sec">📋 Paste</button>
+  </div>
+
+  <div id="progress" style="display:none">
+    <div class="stats">
+      <span id="st-total">۰ تست‌شده</span>
+      <span id="st-alive">۰ پاسخ</span>
+      <span id="st-eta">—</span>
+    </div>
+    <div class="bar"><div id="bar"></div></div>
+  </div>
+
+  <div id="out"></div>
+
+  <details>
+    <summary>چطور کار می‌کنه؟</summary>
+    <p style="color:var(--mut);font-size:13px">IPهای کاندید از <a href="https://github.com/NiREvil/vless" target="_blank">NiREvil/vless</a> گرفته میشن. مرورگر روی هر IP یه درخواست HTTPS می‌زنه؛ اگه TCP+TLS به سرانجام برسه یا خطای معتبر برگرده، IP برای اپراتور تو «قابل‌دسترسی»ـه. زمان پاسخ ≈ RTT واقعی. همه‌چیز لوکال و بدون ارسال لینک تو به هیچ سروری انجام میشه.</p>
+  </details>
+</div>
+
+<script>
+const CFG = {
+  CANDIDATES_URL: 'https://raw.githubusercontent.com/NiREvil/vless/main/Cloudflare-IPs.json',
+  // Crowd-source endpoints. The page tries each; first one that accepts wins.
+  // Keep the first host on a domain that is still reachable on Iranian
+  // national internet — raw.githubusercontent works, Workers.dev often works.
+  REPORT_URLS: [
+    'https://cf.jizjiz.fun/scan/report',
+    'https://cloudgate-jizjiz.hesamhadadi031475.workers.dev/scan/report',
+  ],
+  PROBE_TIMEOUT: 3500,
+  CONCURRENCY: 20,
+  TOP: 8,
+  MAX_PROBE: 80,
+};
+
+const $ = (id) => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const fa = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+function parseLink(s) {
+  if (!s.startsWith('vless://')) throw new Error('لینک باید با vless:// شروع بشه');
+  const body = s.slice(8);
+  const hashIdx = body.indexOf('#');
+  const core = hashIdx >= 0 ? body.slice(0, hashIdx) : body;
+  const tag = hashIdx >= 0 ? decodeURIComponent(body.slice(hashIdx+1)) : '';
+  const atIdx = core.indexOf('@');
+  const uuid = core.slice(0, atIdx);
+  const rest = core.slice(atIdx+1);
+  const qIdx = rest.indexOf('?');
+  const hp = qIdx >= 0 ? rest.slice(0, qIdx) : rest;
+  const qs = qIdx >= 0 ? rest.slice(qIdx+1) : '';
+  const [host, port='443'] = hp.split(':');
+  const params = Object.fromEntries(new URLSearchParams(qs));
+  return { uuid, host, port, params, tag };
+}
+
+function buildLink(p, newIp, label) {
+  const params = { ...p.params };
+  params.sni = params.sni || p.host;
+  params.host = params.host || p.host;
+  const qs = new URLSearchParams(params).toString();
+  return `vless://${p.uuid}@${newIp}:${p.port}?${qs}#${encodeURIComponent(label)}`;
+}
+
+function probe(ip) {
+  // Image/Fetch probe. Cloudflare IPs serve /cdn-cgi/trace on any SNI; fetching
+  // with bare IP throws a cert/CORS error *quickly* if TLS handshake succeeds,
+  // and times out if blocked. Both outcomes let us measure near-true RTT.
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    const ctl = new AbortController();
+    const to = setTimeout(() => { ctl.abort(); resolve(null); }, CFG.PROBE_TIMEOUT);
+    fetch(`https://${ip}/cdn-cgi/trace`, { mode: 'no-cors', signal: ctl.signal, cache: 'no-store' })
+      .then(() => { clearTimeout(to); resolve(performance.now() - t0); })
+      .catch(() => {
+        clearTimeout(to);
+        const dt = performance.now() - t0;
+        // Very fast failure = TLS happened (IP reachable); long = network/filtered.
+        resolve(dt < CFG.PROBE_TIMEOUT - 200 ? dt : null);
+      });
+  });
+}
+
+async function pool(items, n, fn, onEach) {
+  const q = items.slice();
+  const out = [];
+  async function worker() {
+    while (q.length) {
+      const it = q.shift();
+      const r = await fn(it);
+      out.push([it, r]);
+      onEach && onEach(it, r);
+    }
+  }
+  await Promise.all(Array.from({length:n}, worker));
+  return out;
+}
+
+$('paste').onclick = async () => {
+  try { $('link').value = (await navigator.clipboard.readText()).trim(); } catch {}
+};
+
+$('start').onclick = async () => {
+  const raw = $('link').value.trim();
+  if (!raw) return alert('اول لینک رو وارد کن');
+  let parsed;
+  try { parsed = parseLink(raw); }
+  catch (e) { return alert(e.message); }
+
+  $('out').innerHTML = '';
+  $('progress').style.display = 'block';
+  $('start').disabled = true;
+
+  // Fetch candidates
+  let ips = [];
+  try {
+    const res = await fetch(CFG.CANDIDATES_URL, { cache: 'no-store' });
+    const j = await res.json();
+    ips = (j.ipv4 || []).filter(x => x.loss === 0).map(x => x.ip);
+    // Shuffle + cap
+    ips.sort(() => Math.random() - 0.5).length = Math.min(ips.length, CFG.MAX_PROBE);
+  } catch (e) {
+    $('out').innerHTML = `<div class="err">دریافت لیست کاندید شکست خورد: ${e.message}</div>`;
+    $('start').disabled = false;
+    return;
+  }
+
+  let done = 0, alive = 0;
+  const total = ips.length;
+  const t0 = Date.now();
+  const update = () => {
+    $('st-total').textContent = `${fa(done)}/${fa(total)} تست‌شده`;
+    $('st-alive').textContent = `${fa(alive)} پاسخ`;
+    $('bar').style.width = `${done/total*100}%`;
+    if (done > 3) {
+      const eta = Math.max(0, Math.round((Date.now()-t0)/done * (total-done) / 1000));
+      $('st-eta').textContent = `≈ ${fa(eta)} ثانیه باقی‌مونده`;
+    }
+  };
+  update();
+
+  const results = await pool(ips, CFG.CONCURRENCY, probe, (_ip, ms) => {
+    done++;
+    if (ms !== null) alive++;
+    update();
+  });
+
+  const winners = results
+    .filter(([,ms]) => ms !== null)
+    .sort((a,b) => a[1]-b[1])
+    .slice(0, CFG.TOP);
+
+  // Crowd-source: anonymously report winners so other users benefit.
+  if (winners.length) {
+    const payload = JSON.stringify({
+      items: winners.map(([ip, ms]) => ({ ip, ms: Math.round(ms) }))
+    });
+    for (const u of CFG.REPORT_URLS) {
+      try {
+        const r = await fetch(u, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: payload,
+        });
+        if (r.ok) break;
+      } catch {}
+    }
+  }
+
+  if (!winners.length) {
+    $('out').innerHTML = `<div class="err">هیچ IP پاسخ نداد. احتمالاً اپراتورت الان کل کلودفلیر رو بسته یا تایم‌اوت خیلی سخته. چند دقیقه دیگه دوباره امتحان کن.</div>`;
+    $('start').disabled = false;
+    return;
+  }
+
+  const host = parsed.params.sni || parsed.host;
+  let html = `<h3 style="margin-top:20px">✨ بهترین‌ها <span class="badge">SNI: ${host}</span></h3>`;
+  winners.forEach(([ip, ms], i) => {
+    const link = buildLink(parsed, ip, `CG-${ip}`);
+    const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${fa(i+1)}`;
+    html += `
+      <div class="result">
+        <div class="head">
+          <div><span>${rank}</span> <span class="ip">${ip}</span></div>
+          <div class="ms">${fa(Math.round(ms))} ms</div>
+        </div>
+        <div class="link" id="lnk-${i}">${link}</div>
+        <div class="actions">
+          <button onclick="navigator.clipboard.writeText(document.getElementById('lnk-${i}').innerText);this.textContent='کپی شد ✓'">📋 کپی لینک</button>
+          <a href="${link}"><button class="sec">↗ Open in VPN app</button></a>
+        </div>
+      </div>`;
+  });
+  $('out').innerHTML = html;
+  $('start').disabled = false;
+};
+</script>
+</body>
+</html>
