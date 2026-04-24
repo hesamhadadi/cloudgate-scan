@@ -37,7 +37,7 @@
 <body>
 <div class="wrap">
   <h1>🛡️ CloudGate · اسکنر IP تمیز</h1>
-  <p class="sub">لینک <code>vless://</code> فعلیت رو بچسبون. این صفحه از <b>مرورگر همین دستگاه</b> ≈۸۰ تا IP کلودفلیر رو تست می‌کنه و بهترین‌ها رو از دید <b>نت فعلی خودت</b> بهت میده.</p>
+  <p class="sub">لینک <code>vless://</code> فعلیت رو بچسبون. این صفحه از <b>مرورگر همین دستگاه</b> نزدیک به <b>۸۰۰ آی‌پی کلودفلیر</b> از تمام رنج‌های رسمی رو تست می‌کنه (~۴۵ ثانیه) و بهترین‌ها رو از دید <b>نت فعلی خودت</b> بهت میده.</p>
 
   <textarea id="link" placeholder="vless://...#tag" spellcheck="false"></textarea>
 
@@ -66,18 +66,50 @@
 <script>
 const CFG = {
   CANDIDATES_URL: 'https://raw.githubusercontent.com/NiREvil/vless/main/Cloudflare-IPs.json',
-  // Crowd-source endpoints. The page tries each; first one that accepts wins.
-  // Keep the first host on a domain that is still reachable on Iranian
-  // national internet — raw.githubusercontent works, Workers.dev often works.
   REPORT_URLS: [
     'https://cf.jizjiz.fun/scan/report',
     'https://cloudgate-jizjiz.hesamhadadi031475.workers.dev/scan/report',
   ],
   PROBE_TIMEOUT: 3500,
-  CONCURRENCY: 20,
-  TOP: 8,
-  MAX_PROBE: 80,
+  CONCURRENCY: 32,
+  TOP: 10,
+  MAX_PROBE: 800,
+  // Number of random IPs to draw from each official Cloudflare CIDR below.
+  PER_CIDR: 60,
 };
+
+// Official Cloudflare IPv4 prefixes (https://www.cloudflare.com/ips-v4).
+// Sampling across *all* of them is what gives the scanner its real reach —
+// some prefixes are heavily blocked in Iran while others stay accessible.
+const CF_CIDRS = [
+  '173.245.48.0/20','103.21.244.0/22','103.22.200.0/22','103.31.4.0/22',
+  '141.101.64.0/18','108.162.192.0/18','190.93.240.0/20','188.114.96.0/20',
+  '197.234.240.0/22','198.41.128.0/17','162.158.0.0/15','104.16.0.0/13',
+  '104.24.0.0/14','172.64.0.0/13','131.0.72.0/22',
+];
+
+function expandCIDR(cidr, count) {
+  const [ip, bitsStr] = cidr.split('/');
+  const bits = Number(bitsStr);
+  const [a,b,c,d] = ip.split('.').map(Number);
+  // Use plain arithmetic; values fit in a double.
+  const base = a*16777216 + b*65536 + c*256 + d;
+  const size = Math.pow(2, 32 - bits);
+  const net = Math.floor(base / size) * size;
+  const take = Math.min(count, Math.max(size - 2, 1));
+  const out = new Set();
+  let guard = take * 4;
+  while (out.size < take && guard-- > 0) {
+    const off = 1 + Math.floor(Math.random() * (size - 2));
+    const n = net + off;
+    const A = Math.floor(n / 16777216) & 255;
+    const B = Math.floor(n / 65536) & 255;
+    const C = Math.floor(n / 256) & 255;
+    const D = n & 255;
+    out.add(`${A}.${B}.${C}.${D}`);
+  }
+  return [...out];
+}
 
 const $ = (id) => document.getElementById(id);
 const pad = n => String(n).padStart(2,'0');
@@ -157,18 +189,25 @@ $('start').onclick = async () => {
   $('progress').style.display = 'block';
   $('start').disabled = true;
 
-  // Fetch candidates
-  let ips = [];
+  // Build candidate pool: community-vetted IPs first (if GitHub is
+  // reachable), then dense random samples from every official CF prefix.
+  let priority = [];
   try {
-    const res = await fetch(CFG.CANDIDATES_URL, { cache: 'no-store' });
+    const res = await fetch(CFG.CANDIDATES_URL, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
     const j = await res.json();
-    ips = (j.ipv4 || []).filter(x => x.loss === 0).map(x => x.ip);
-    // Shuffle + cap
-    ips.sort(() => Math.random() - 0.5).length = Math.min(ips.length, CFG.MAX_PROBE);
-  } catch (e) {
-    $('out').innerHTML = `<div class="err">دریافت لیست کاندید شکست خورد: ${e.message}</div>`;
-    $('start').disabled = false;
-    return;
+    priority = (j.ipv4 || [])
+      .sort((a,b) => (a.loss ?? 99) - (b.loss ?? 99) || (a.latency ?? 9e9) - (b.latency ?? 9e9))
+      .map(x => x.ip);
+  } catch {}
+
+  const random = CF_CIDRS.flatMap(c => expandCIDR(c, CFG.PER_CIDR));
+  random.sort(() => Math.random() - 0.5);
+
+  const seen = new Set(), ips = [];
+  for (const ip of [...priority, ...random]) {
+    if (seen.has(ip)) continue;
+    seen.add(ip); ips.push(ip);
+    if (ips.length >= CFG.MAX_PROBE) break;
   }
 
   let done = 0, alive = 0;
