@@ -37,7 +37,7 @@
 <body>
 <div class="wrap">
   <h1>🛡️ CloudGate · اسکنر IP تمیز</h1>
-  <p class="sub">لینک <code>vless://</code> فعلیت رو بچسبون. این صفحه از <b>مرورگر همین دستگاه</b> نزدیک به <b>۸۰۰ آی‌پی کلودفلیر</b> از تمام رنج‌های رسمی رو تست می‌کنه (~۴۵ ثانیه) و بهترین‌ها رو از دید <b>نت فعلی خودت</b> بهت میده.</p>
+  <p class="sub">لینک <code>vless://</code> فعلیت رو بچسبون. این صفحه از <b>مرورگر همین دستگاه</b> حدود <b>۲۰۰۰ آی‌پی کلودفلیر</b> رو روی <b>۶ پورت TLS مختلف</b> (۴۴۳، ۲۰۵۳، ۲۰۸۳، ۲۰۸۷، ۲۰۹۶، ۸۴۴۳) تست می‌کنه — حدود ۹۰ ثانیه. اگه حتی یکی از پورت‌های جایگزین باز باشه، پیدا می‌شه.</p>
 
   <textarea id="link" placeholder="vless://...#tag" spellcheck="false"></textarea>
 
@@ -70,12 +70,15 @@ const CFG = {
     'https://cf.jizjiz.fun/scan/report',
     'https://cloudgate-jizjiz.hesamhadadi031475.workers.dev/scan/report',
   ],
-  PROBE_TIMEOUT: 3500,
-  CONCURRENCY: 32,
+  PROBE_TIMEOUT: 2800,
+  CONCURRENCY: 48,
   TOP: 10,
-  MAX_PROBE: 800,
-  // Number of random IPs to draw from each official Cloudflare CIDR below.
-  PER_CIDR: 60,
+  MAX_PROBE: 2000,
+  // Random IPs drawn from each official Cloudflare CIDR below.
+  PER_CIDR: 140,
+  // Alternate CF TLS ports tried when 443 times out. Iranian ISPs often
+  // block 443 to a CF IP but leave these open because they're rarer.
+  ALT_PORTS: [443, 2053, 2083, 2087, 2096, 8443],
 };
 
 // Official Cloudflare IPv4 prefixes (https://www.cloudflare.com/ips-v4).
@@ -132,15 +135,15 @@ function parseLink(s) {
   return { uuid, host, port, params, tag };
 }
 
-function buildLink(p, newIp, label) {
+function buildLink(p, newIp, newPort, label) {
   const params = { ...p.params };
   params.sni = params.sni || p.host;
   params.host = params.host || p.host;
   const qs = new URLSearchParams(params).toString();
-  return `vless://${p.uuid}@${newIp}:${p.port}?${qs}#${encodeURIComponent(label)}`;
+  return `vless://${p.uuid}@${newIp}:${newPort}?${qs}#${encodeURIComponent(label)}`;
 }
 
-function probe(ip) {
+function probe({ ip, port }) {
   // Image/Fetch probe. Cloudflare IPs serve /cdn-cgi/trace on any SNI; fetching
   // with bare IP throws a cert/CORS error *quickly* if TLS handshake succeeds,
   // and times out if blocked. Both outcomes let us measure near-true RTT.
@@ -148,12 +151,12 @@ function probe(ip) {
     const t0 = performance.now();
     const ctl = new AbortController();
     const to = setTimeout(() => { ctl.abort(); resolve(null); }, CFG.PROBE_TIMEOUT);
-    fetch(`https://${ip}/cdn-cgi/trace`, { mode: 'no-cors', signal: ctl.signal, cache: 'no-store' })
+    const portSuffix = port === 443 ? '' : ':' + port;
+    fetch(`https://${ip}${portSuffix}/cdn-cgi/trace`, { mode: 'no-cors', signal: ctl.signal, cache: 'no-store' })
       .then(() => { clearTimeout(to); resolve(performance.now() - t0); })
       .catch(() => {
         clearTimeout(to);
         const dt = performance.now() - t0;
-        // Very fast failure = TLS happened (IP reachable); long = network/filtered.
         resolve(dt < CFG.PROBE_TIMEOUT - 200 ? dt : null);
       });
   });
@@ -203,12 +206,19 @@ $('start').onclick = async () => {
   const random = CF_CIDRS.flatMap(c => expandCIDR(c, CFG.PER_CIDR));
   random.sort(() => Math.random() - 0.5);
 
-  const seen = new Set(), ips = [];
+  // Combine, dedup IPs, then assign a port to each: 70% on :443, the rest
+  // spread across alternate CF TLS ports so we catch ISPs that block 443 only.
+  const seen = new Set(), ipList = [];
   for (const ip of [...priority, ...random]) {
     if (seen.has(ip)) continue;
-    seen.add(ip); ips.push(ip);
-    if (ips.length >= CFG.MAX_PROBE) break;
+    seen.add(ip); ipList.push(ip);
+    if (ipList.length >= CFG.MAX_PROBE) break;
   }
+  const alts = CFG.ALT_PORTS.filter(p => p !== 443);
+  const ips = ipList.map((ip, i) => ({
+    ip,
+    port: i % 10 < 7 ? 443 : alts[Math.floor(Math.random() * alts.length)],
+  }));
 
   let done = 0, alive = 0;
   const total = ips.length;
@@ -224,7 +234,7 @@ $('start').onclick = async () => {
   };
   update();
 
-  const results = await pool(ips, CFG.CONCURRENCY, probe, (_ip, ms) => {
+  const results = await pool(ips, CFG.CONCURRENCY, probe, (_item, ms) => {
     done++;
     if (ms !== null) alive++;
     update();
@@ -238,7 +248,7 @@ $('start').onclick = async () => {
   // Crowd-source: anonymously report winners so other users benefit.
   if (winners.length) {
     const payload = JSON.stringify({
-      items: winners.map(([ip, ms]) => ({ ip, ms: Math.round(ms) }))
+      items: winners.map(([it, ms]) => ({ ip: it.ip, port: it.port, ms: Math.round(ms) }))
     });
     for (const u of CFG.REPORT_URLS) {
       try {
@@ -253,20 +263,25 @@ $('start').onclick = async () => {
   }
 
   if (!winners.length) {
-    $('out').innerHTML = `<div class="err">هیچ IP پاسخ نداد. احتمالاً اپراتورت الان کل کلودفلیر رو بسته یا تایم‌اوت خیلی سخته. چند دقیقه دیگه دوباره امتحان کن.</div>`;
+    $('out').innerHTML = `<div class="err">
+      هیچ IP پاسخ نداد — احتمالاً اپراتورت کل Cloudflare رو رو تمام پورت‌ها بسته.<br>
+      چند دقیقه دیگه دوباره تست کن، یا به صاحب پنل بگو برات Reality فعال کنه (روش مقاوم‌تر).
+    </div>`;
     $('start').disabled = false;
     return;
   }
 
   const host = parsed.params.sni || parsed.host;
   let html = `<h3 style="margin-top:20px">✨ بهترین‌ها <span class="badge">SNI: ${host}</span></h3>`;
-  winners.forEach(([ip, ms], i) => {
-    const link = buildLink(parsed, ip, `CG-${ip}`);
+  winners.forEach(([item, ms], i) => {
+    const { ip, port } = item;
+    const link = buildLink(parsed, ip, port, `CG-${ip}:${port}`);
     const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${fa(i+1)}`;
+    const portBadge = port === 443 ? '' : ` <span class="badge">پورت ${fa(port)}</span>`;
     html += `
       <div class="result">
         <div class="head">
-          <div><span>${rank}</span> <span class="ip">${ip}</span></div>
+          <div><span>${rank}</span> <span class="ip">${ip}</span>${portBadge}</div>
           <div class="ms">${fa(Math.round(ms))} ms</div>
         </div>
         <div class="link" id="lnk-${i}">${link}</div>
