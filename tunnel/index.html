@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CloudGate Tunnel — DNS عبور</title>
+<style>
+  :root{
+    --bg:#0d1117; --pan:#161b22; --bd:#30363d; --txt:#e6edf3;
+    --mut:#7d8590; --acc:#2ea043; --acc2:#1f6feb; --warn:#f0883e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.7 system-ui,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:24px 18px}
+  h1{font-size:22px;margin:0 0 8px}
+  h2{font-size:16px;margin:24px 0 12px;color:var(--acc)}
+  .sub{color:var(--mut);font-size:14px}
+  .card{background:var(--pan);border:1px solid var(--bd);border-radius:14px;padding:16px;margin:16px 0}
+  .badge{display:inline-block;padding:2px 8px;background:#21262d;border:1px solid var(--bd);border-radius:99px;font-size:11px;color:var(--mut)}
+  a.btn{
+    display:flex;align-items:center;gap:10px;
+    background:var(--acc);color:#fff;padding:14px 16px;border-radius:10px;
+    text-decoration:none;font-weight:600;font-size:15px;margin:8px 0;
+    border:none;cursor:pointer;
+  }
+  a.btn:hover{background:#3fb950}
+  a.btn.alt{background:var(--acc2)} a.btn.alt:hover{background:#388bfd}
+  a.btn.ghost{background:transparent;border:1px solid var(--bd);color:var(--txt)}
+  .pill{display:inline-block;font-size:12px;background:#1f2937;padding:2px 8px;border-radius:99px;margin-inline-start:6px}
+  details{background:var(--pan);border:1px solid var(--bd);border-radius:10px;padding:8px 14px;margin:10px 0}
+  summary{cursor:pointer;color:var(--mut);font-weight:500}
+  details[open] summary{margin-bottom:8px}
+  code{background:#1f2937;padding:2px 6px;border-radius:4px;font-size:13px;direction:ltr;display:inline-block}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media (max-width:520px){.grid{grid-template-columns:1fr}}
+  ol li,ul li{margin:4px 0}
+  .step{display:flex;gap:10px;align-items:flex-start;margin:10px 0}
+  .step .n{flex-shrink:0;width:26px;height:26px;background:var(--acc);border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ CloudGate Tunnel</h1>
+  <p class="sub">
+    تونل از طریق <b>DNS-over-HTTPS</b>. اگه نت ملی همه چیز رو بسته — این هنوز کار می‌کنه چون فقط از <code>dns.google</code> یا <code>1.1.1.1</code> رد می‌شه (که ایران مجبوره بازشون نگه داره).
+    <br><span class="badge">Server: Frankfurt 🇩🇪</span>
+    <span class="badge">Protocol: dnstt + microsocks</span>
+  </p>
+
+  <h2>📥 دانلود سریع</h2>
+  <div class="card">
+    <a class="btn" href="cloudgate-tunnel.zip" download>
+      📦 دانلود کامل (همه پلتفرم‌ها) — 36MB
+    </a>
+    <p class="sub" style="margin:10px 0 0">شامل Windows + Mac + Linux + Android. مناسب اگه نمی‌دونی کاربر چی داره.</p>
+  </div>
+
+  <h2>یا فقط برای OS خودت:</h2>
+  <div class="grid">
+    <a class="btn alt" href="bin/dnstt-client-windows-amd64.exe" download>🪟 Windows x64</a>
+    <a class="btn alt" href="bin/dnstt-client-darwin-arm64" download>🍎 macOS (Apple Silicon)</a>
+    <a class="btn alt" href="bin/dnstt-client-darwin-amd64" download>🍎 macOS (Intel)</a>
+    <a class="btn alt" href="bin/dnstt-client-linux-amd64" download>🐧 Linux x64</a>
+    <a class="btn alt" href="bin/dnstt-client-linux-arm64" download>📱 Android (Termux ARM)</a>
+    <a class="btn alt" href="bin/dnstt-client-windows-arm64.exe" download>🪟 Windows ARM</a>
+  </div>
+  <p class="sub" style="margin-top:8px">
+    اسکریپت‌های راه‌اندازی:
+    <a href="start-windows.bat" download>start-windows.bat</a> ·
+    <a href="start-mac.command" download>start-mac.command</a> ·
+    <a href="start-linux.sh" download>start-linux.sh</a>
+  </p>
+
+  <h2>⚡ راه‌اندازی (۳۰ ثانیه)</h2>
+
+  <div class="card">
+    <div class="step"><div class="n">1</div><div>
+      دانلود زیپ بالا، اکسترکت کن.
+    </div></div>
+    <div class="step"><div class="n">2</div><div>
+      روی <b>Windows</b>: <code>start-windows.bat</code> دابل‌کلیک.<br>
+      روی <b>Mac</b>: راست‌کلیک <code>start-mac.command</code> → Open.<br>
+      روی <b>Android</b>: نصب اپ <b>Termux</b> از <a href="https://f-droid.org/packages/com.termux/" style="color:var(--acc2)">F-Droid</a>، فایل‌ها رو کپی به <code>/sdcard/tunnel/</code>، تو Termux بزن <code>bash /sdcard/tunnel/start-linux.sh</code>.
+    </div></div>
+    <div class="step"><div class="n">3</div><div>
+      تو پنجره می‌بینی: <code style="direction:ltr">SOCKS5 proxy on 127.0.0.1:7000</code>.<br>
+      پنجره رو ببند → تونل قطع. باز نگهدار.
+    </div></div>
+    <div class="step"><div class="n">4</div><div>
+      <b>تلگرام دسکتاپ</b>: Settings → Advanced → Connection type → <b>Use custom proxy</b><br>
+      Type: <b>SOCKS5</b> | Hostname: <code>127.0.0.1</code> | Port: <code>7000</code><br>
+      <b>تلگرام اندروید</b>: Settings → Data → Proxy Settings → Add → SOCKS5 → 127.0.0.1 / 7000
+    </div></div>
+  </div>
+
+  <details>
+    <summary>برای فایرفاکس و کروم</summary>
+    <p><b>Firefox:</b> Settings → Network Settings → Manual proxy → SOCKS Host: <code>127.0.0.1</code> Port: <code>7000</code> → SOCKS v5 → ☑ <i>Proxy DNS when using SOCKS v5</i></p>
+    <p><b>Chrome/Edge:</b> اکستنشن <a href="https://chrome.google.com/webstore/detail/foxyproxy-standard/gcknhkkoolaabfmlnjonogaaifnjlfnp" style="color:var(--acc2)">FoxyProxy</a> یا <a href="https://chrome.google.com/webstore/detail/proxy-switchyomega/padekgcemlokbadohgkifijomclgjgif" style="color:var(--acc2)">Proxy SwitchyOmega</a> نصب کن، پروفایل SOCKS5 با همون آدرس بساز.</p>
+  </details>
+
+  <details>
+    <summary>چطوری کار می‌کنه؟</summary>
+    <pre style="overflow-x:auto;font-size:12px;background:#0d1117;padding:12px;border-radius:8px;direction:ltr;text-align:left">
+[Telegram یا مرورگر]
+        ↓ SOCKS5 127.0.0.1:7000
+[dnstt-client روی دستگاه]
+        ↓ HTTPS port 443 to dns.google
+[Google DoH resolver]   ← ایران این رو نمی‌بنده
+        ↓ recursive lookup *.t.jizjiz.fun
+[Cloudflare nameservers] → delegated to:
+[سرور آلمان UDP/53]      ← مسیر Google→DO، نه Iran→DO
+        ↓ unwrap encrypted payload
+[microsocks → اینترنت آزاد]
+    </pre>
+    <p>چون ترافیک از طریق Google/Cloudflare DoH رد می‌شه (که ایران بازشون نگه می‌داره)، حتی وقتی IP سرور خارجی کاملاً null-routeـه، باز کار می‌کنه.</p>
+  </details>
+
+  <details>
+    <summary>اگه وصل نشد</summary>
+    <ul>
+      <li>اسکریپت چند تا resolver رو پشت‌سرهم امتحان می‌کنه. اگه اولی فِیل کرد، صبر کن بعدی رو شروع کنه.</li>
+      <li>روی Mac اگه می‌گه «cannot be opened»: راست‌کلیک → Open → Open.</li>
+      <li>روی Windows اگه Defender هشدار میده: More info → Run anyway. (binary unsigned ولی open-source از <a href="https://www.bamsoftware.com/software/dnstt/" style="color:var(--acc2)">dnstt</a> compile شده)</li>
+      <li>سرعت <b>کند</b>ـه (50-200KB/s) چون داره از داخل DNS رد می‌شه. برای پیام و چت خوبه، ویدیو نه.</li>
+    </ul>
+  </details>
+
+  <p class="sub" style="margin-top:24px;font-size:13px;text-align:center">
+    Built on <a href="https://www.bamsoftware.com/software/dnstt/" style="color:var(--acc2)">dnstt</a> by David Fifield ·
+    <a href="https://github.com/hesamhadadi/cloudgate-scan" style="color:var(--acc2)">source</a>
+  </p>
+</div>
+</body>
+</html>
