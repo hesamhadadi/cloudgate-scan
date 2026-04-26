@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CloudGate · کانفیگ‌های مستقیم</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --pan:#161b22; --bd:#30363d; --txt:#e6edf3;
+    --mut:#7d8590; --acc:#2ea043; --acc2:#1f6feb;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 system-ui,sans-serif}
+  .wrap{max-width:520px;margin:0 auto;padding:18px}
+  h1{font-size:20px;margin:0 0 6px}
+  h2{font-size:16px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 18px}
+  .card{background:var(--pan);border:1px solid var(--bd);border-radius:14px;padding:18px;margin:14px 0}
+  .qrbox{background:#fff;padding:12px;border-radius:10px;display:flex;justify-content:center;margin:14px 0}
+  canvas{display:block;max-width:100%}
+  .link{
+    background:#0d1117;border:1px solid var(--bd);
+    padding:8px 10px;border-radius:6px;
+    font:12px/1.4 ui-monospace,monospace;
+    word-break:break-all;direction:ltr;text-align:left;
+    margin:8px 0;
+  }
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  button,a.btn{
+    flex:1 1 auto;background:var(--acc);color:#fff;border:none;
+    padding:10px 14px;border-radius:8px;font-size:14px;font-weight:600;
+    cursor:pointer;text-decoration:none;text-align:center;display:inline-block;
+  }
+  button.alt,a.btn.alt{background:var(--acc2)}
+  button.ghost{background:transparent;border:1px solid var(--bd);color:var(--txt)}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:#21262d;color:var(--mut);border:1px solid var(--bd)}
+  .meta{font-size:13px;color:var(--mut);margin-top:8px}
+  details{background:var(--pan);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px}
+  summary{cursor:pointer;color:var(--mut);font-weight:500}
+  ol{padding-inline-start:18px;margin:8px 0}
+  li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ CloudGate · کانفیگ‌ها</h1>
+  <p class="sub">سه روش، هر کدوم برای یه شرایط شبکه. اولی رو امتحان کن، اگه نشد دومی، اگه نشد سومی.</p>
+
+  <!-- Method 1 — Hysteria2 (UDP) -->
+  <div class="card">
+    <h2>1️⃣ Hysteria2 <span class="badge">UDP/443</span> <span class="badge">📱 iOS-friendly</span></h2>
+    <p class="meta">UDP-based. وقتی TCP ایران بسته‌ست ولی UDP باز، این کار می‌کنه. سریع‌ترین گزینه.</p>
+    <div class="qrbox"><canvas id="qr1"></canvas></div>
+    <div class="link" id="hy2link"></div>
+    <div class="row">
+      <button onclick="copyLink('hy2link', this)">📋 کپی لینک</button>
+      <a class="btn alt" id="hy2deep">↗ Open in app</a>
+    </div>
+  </div>
+
+  <!-- Method 2 — Reality (TCP) -->
+  <div class="card">
+    <h2>2️⃣ Reality <span class="badge">TCP/443</span></h2>
+    <p class="meta">TCP-based با SNI جعلی به yahoo.com. اگه IP سرور رو نتت بازه، خوب کار می‌کنه.</p>
+    <div class="qrbox"><canvas id="qr2"></canvas></div>
+    <div class="link" id="vlesslink"></div>
+    <div class="row">
+      <button onclick="copyLink('vlesslink', this)">📋 کپی لینک</button>
+      <a class="btn alt" id="vlessdeep">↗ Open in app</a>
+    </div>
+  </div>
+
+  <!-- Method 3 — DNS Tunnel (desktop only) -->
+  <div class="card">
+    <h2>3️⃣ DNS Tunnel <span class="badge">UDP/53 over DoH</span> <span class="badge">💻 Win/Mac/Android فقط</span></h2>
+    <p class="meta">آخرین خط دفاع. وقتی همه‌چی بسته‌ست. سرعت پایین ولی پیام‌ها رد می‌شن. روی iPhone کار نمی‌کنه (محدودیت iOS).</p>
+    <a class="btn" href="../tunnel/">↗ راهنمای DNS Tunnel</a>
+  </div>
+
+  <details>
+    <summary>📲 اپ پیشنهادی برای iOS</summary>
+    <ol>
+      <li><b>Streisand</b> (رایگان) — هم Hysteria2 هم Reality رو ساپورت می‌کنه. <a href="https://apps.apple.com/app/streisand/id6450534064" style="color:var(--acc2)">App Store</a></li>
+      <li><b>FoXray</b> (رایگان) — برای Reality عالیه. <a href="https://apps.apple.com/app/foxray/id6448898396" style="color:var(--acc2)">App Store</a></li>
+      <li><b>Shadowrocket</b> (~$3) — همه‌چیز رو ساپورت می‌کنه. <a href="https://apps.apple.com/app/shadowrocket/id932747118" style="color:var(--acc2)">App Store</a></li>
+    </ol>
+  </details>
+
+  <details>
+    <summary>📱 اپ پیشنهادی برای Android</summary>
+    <ol>
+      <li><b>Hiddify-Next</b> (رایگان، open-source) — بهترین گزینه. <a href="https://play.google.com/store/apps/details?id=app.hiddify.com" style="color:var(--acc2)">Play Store</a> · <a href="https://github.com/hiddify/hiddify-next/releases" style="color:var(--acc2)">GitHub</a></li>
+      <li><b>v2rayNG</b> (رایگان) — کلاسیک، همه‌چیز رو ساپورت. <a href="https://github.com/2dust/v2rayNG/releases" style="color:var(--acc2)">GitHub APK</a></li>
+      <li><b>NekoBox</b> (رایگان) — قدرتمند با sing-box. <a href="https://github.com/MatsuriDayo/NekoBoxForAndroid/releases" style="color:var(--acc2)">GitHub APK</a></li>
+    </ol>
+  </details>
+
+  <details>
+    <summary>💻 برای Windows / Mac</summary>
+    <ol>
+      <li><b>Hiddify-Next</b> — هم Windows هم Mac. <a href="https://github.com/hiddify/hiddify-next/releases" style="color:var(--acc2)">دانلود</a></li>
+      <li><b>v2rayN</b> (Windows) — کلاسیک. <a href="https://github.com/2dust/v2rayN/releases" style="color:var(--acc2)">دانلود</a></li>
+      <li><b>FoXray</b> (Mac) — <a href="https://apps.apple.com/app/foxray/id6448898396" style="color:var(--acc2)">Mac App Store</a></li>
+    </ol>
+  </details>
+
+  <details>
+    <summary>چطور وارد اپ بشم؟</summary>
+    <ol>
+      <li>اپ رو باز کن.</li>
+      <li>دکمه‌ی <b>+</b> یا «Import / Add Profile» بزن.</li>
+      <li>گزینه‌ی <b>«Scan QR»</b> یا <b>«Import from Clipboard»</b> رو انتخاب کن.</li>
+      <li>اگه QR رو می‌خونی → دوربین رو روی QR کد بالا بگیر.</li>
+      <li>اگه clipboard → دکمه «📋 کپی لینک» رو بزن، تو اپ Paste کن.</li>
+      <li>اگه دکمه «↗ Open in app» (روی همین گوشی) → یه بار تپ کن، اپ خودش باز می‌شه.</li>
+    </ol>
+  </details>
+
+  <p style="text-align:center;margin-top:24px;color:var(--mut);font-size:12px">
+    Server: Frankfurt 🇩🇪 · <a href="../" style="color:var(--acc2)">← اسکنر IP</a> · <a href="../tunnel/" style="color:var(--acc2)">DNS Tunnel</a>
+  </p>
+</div>
+
+<script>
+const HY2 = "hysteria2://nfLkgpmBlMbWzNSJC6r84t@64.226.101.153:443/?obfs=salamander&obfs-password=b8c51YMn10gLSoqaIkXW9Q&sni=bing.com&insecure=1#CG-DE";
+const VLESS = "vless://70c27247-c1fc-40e3-95c4-a915f3f36fd5@64.226.101.153:443?security=reality&sni=www.yahoo.com&fp=chrome&pbk=L4GFx7RvQYPHctIDAKrEn68NLE-QNiCKMdnsj5yg82o&sid=b5ed9654f7c4ded7&type=tcp&flow=xtls-rprx-vision&encryption=none#CG-Reality-DE";
+
+document.getElementById('hy2link').textContent = HY2;
+document.getElementById('vlesslink').textContent = VLESS;
+document.getElementById('hy2deep').href = HY2;
+document.getElementById('vlessdeep').href = VLESS;
+
+const opts = { width: 280, margin: 1, color: { dark:'#000', light:'#fff' } };
+QRCode.toCanvas(document.getElementById('qr1'), HY2,   opts);
+QRCode.toCanvas(document.getElementById('qr2'), VLESS, opts);
+
+function copyLink(id, btn){
+  navigator.clipboard.writeText(document.getElementById(id).textContent);
+  const o = btn.textContent; btn.textContent = '✓ کپی شد';
+  setTimeout(()=>btn.textContent=o, 1500);
+}
+</script>
+</body>
+</html>
