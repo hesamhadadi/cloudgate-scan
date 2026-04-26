@@ -8,6 +8,11 @@ DOMAIN=t.jizjiz.fun
 LISTEN=127.0.0.1:7000
 
 RESOLVERS=(
+  # Iranian-resident DoH first (always reachable from Iran).
+  https://free.shecan.ir/dns-query
+  https://dns.shecan.ir/dns-query
+  https://dns.electrotelecom.ir/dns-query
+  # International fallbacks.
   https://dns.google/dns-query
   https://1.1.1.1/dns-query
   https://dns.adguard-dns.com/dns-query

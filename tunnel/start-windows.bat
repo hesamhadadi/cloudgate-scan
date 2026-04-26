@@ -14,7 +14,10 @@ set LISTEN=127.0.0.1:7000
 
 REM Try resolvers in order until one connects. dns.google is almost always open
 REM in Iran since blocking it would break too many other apps.
-set RESOLVERS=https://dns.google/dns-query https://1.1.1.1/dns-query https://dns.adguard-dns.com/dns-query https://doh.dns.sb/dns-query
+REM Iranian-friendly DoH first (always reachable from inside Iran),
+REM then international fallbacks. The first one whose outbound recursive
+REM path can reach our auth NS wins.
+set RESOLVERS=https://free.shecan.ir/dns-query https://dns.shecan.ir/dns-query https://dns.electrotelecom.ir/dns-query https://dns.google/dns-query https://1.1.1.1/dns-query https://dns.adguard-dns.com/dns-query https://doh.dns.sb/dns-query https://doh.opendns.com/dns-query
 
 cd /d "%~dp0"
 
